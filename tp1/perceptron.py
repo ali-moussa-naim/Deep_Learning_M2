@@ -46,6 +46,9 @@ def readfeatures(features):
     # Calcul des features avec la fonction z
     l_z = z(model, features)
 
+    # On récupère l'erreur
+    e = error(features, model)
+
     # Calcul des predi avec la fonction y
     l_y = y(model, features)
 
@@ -70,10 +73,24 @@ def readfeatures(features):
         for i in range(len(features)):
             Xk = (features[i][1], features[i][2])
             print("\t" , i , ": " , features[i][0] , "-" , Xk , "-" , "z=" , l_z[i] , "-" , "φ=", phi(l_z[i]) , "-" , "y=" , l_y[i])
+
+        print(" Erreur:", e)
+    else:
+        print("il faut qu'il y ait le même nombre de sorties que de données")
+        return 
     
 
 # Fonction qui affiche sur une figure les données du features
-def displayfeatures(features):
+def displayDataset(features, model):
+    # Liste des predictions
+    l_predi = y(model, features)
+    
+    # On vérifie s'il y a le même nombre de classes que predi
+    if(len(features) != len(l_predi)):
+        print("Il n'y a pas le même nombre de classes que de predi")
+        return
+    
+
     # Réglage de la figure
     plt.figure(figsize=(20,12))
 
@@ -81,19 +98,41 @@ def displayfeatures(features):
     plt.xlabel('x')
     plt.ylabel('y')
 
+    plt.xlim(0, 5.0)
+    plt.ylim(0, 5.0)
+
     # Grille de la figure
     plt.grid(alpha=0.1, linewidth=1.0)
 
     # Parcours des coordonnées dans le sample
-    for Xk in features:
+    for i in range(len(features)):
 
-        # Affichage du point en rouge si t = 1
-        if (Xk[0] == 1):
-            plt.plot(Xk[1], Xk[2], marker='o', color='red')
+        #Affichage du point en vert si classe = 0 et predi = 0
+        if(features[i][0] == 0 and l_predi[i] == 0):
+            plt.plot(features[i][1], features[i][2], marker='o', color='green')
         
-        #Affichage du point en vert si t = 0
+        # Affichage du point en cyan si classe = 0 et predi = 1
+        elif(features[i][0] == 0 and l_predi[i] == 1):
+            plt.plot(features[i][1], features[i][2], marker='o', color='cyan')
+
+        # Affichage du point en rouge si t = 1 et predi = 1
+        elif(features[i][0] == 1 and l_predi[i] == 1):
+            plt.plot(features[i][1], features[i][2], marker='o', color='red')
+        
+        # Affichage du point en magenta si t = 1 et predi = 0
+        elif(features[i][0] == 1 and l_predi[i] == 0):
+            plt.plot(features[i][1], features[i][2], marker='o', color='magenta')
+        
+        #Affichage du point en gris si pas de prédiction associée
         else:
-            plt.plot(Xk[1], Xk[2], marker='o', color='green')
+            plt.plot(features[i][1], features[i][2], marker='o', color='gray')
+    
+    # Affichage ligne frontière décision
+    displayFrontier(model)
+
+    # Affichage de l'erreur
+    e = error(features, model)
+    plt.text(0, 4.9, f'Error:{e}', fontsize=9, color='black', rotation=0)
     
     # Affichage de la figure
     plt.show()
@@ -140,7 +179,47 @@ def y(model, features):
         for el in l_tmp:
             l_predi.append(phi(el))
         return l_predi
-                
+
+# Fonction qui affiche la frontière de décision
+def displayFrontier(model):
+    w1, w2, b = model
+    xmin, xmax = plt.xlim()
+    ymin, ymax = plt.ylim()
+
+    if w2 != 0:
+        x1s = [xmin, xmax]
+        x2s = [(-w1 * xmin - b) / w2, (-w1 * xmax - b) / w2]
+    elif w1 != 0:
+        x1s = [-b / w1, -b / w1]
+        x2s = [ymin, ymax]
+    else:
+        return
+
+    plt.plot(x1s, x2s, color='orange', linewidth=2)
+
+# Fonction qui calcule et retourne l'erreur e
+def error(features, model):
+
+    # Ajout des classes de tous les individus
+    l_classe = []
+    for Xk in features:
+        l_classe.append(Xk[0])
+    
+    # On récupère toutes les prédi
+    l_predi = y(model, features)
+
+    # On vérifie qu'il y a autant de prédi que de classes
+    if(len(l_classe) != len(l_predi)):
+        print("Il faut qu'il y ait le même nombre de predi que de classes")
+        return
+
+    e = 0
+    for i in range(len(features)):
+        e += (l_classe[i] - l_predi[i])
+    
+    return e
+
+
 
 def main():
     """Point d'entree du programme
@@ -154,7 +233,7 @@ def main():
     readfeatures(features)
     #l_y = y(model, features)
     #print(l_y)
-
+    displayDataset(features, model)
 
 if __name__ == "__main__":
     main()
