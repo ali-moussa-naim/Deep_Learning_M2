@@ -5,6 +5,9 @@ import csv
 # Variable pour les poids et biais
 model = np.array([-0.5, 1.2, -1.35])
 
+# Variable pour le taux d'apprentissage
+alpha = 1
+
 def initPLT():
     """Initialisation des composants de MatPlotLib"""
 
@@ -59,11 +62,19 @@ def readfeatures(features):
 
     print("\n")
 
+    # On récupère l'erreur et le nombre d'epoch avec la fonction train
+    epochs, e = train(model, features, alpha)
+    print("Train")
+    print(" error :", e)
+    print(" epochs :", epochs)
+
+    print("\n")
+
     dimension = len(features[0])
     size = len(features)
 
     # Affichage des données
-    print("features")
+    print("Dataset")
     print(" Dimension: ", dimension)
     print(" Size     : ", size)
     print(" Samples  :")
@@ -92,7 +103,7 @@ def displayDataset(features, model):
     
 
     # Réglage de la figure
-    plt.figure(figsize=(20,12))
+    plt.figure(figsize=(10,6))
 
     # Nom des axes
     plt.xlabel('x')
@@ -139,46 +150,46 @@ def displayDataset(features, model):
 
 # Fonction qui fait la fonction d'activation
 def z(model, features):
-    
-    # Vérification s'il y a autant de poids que de features
-    if(len(model) != len(features[0])):
-        print("Il n'y a pas le même nombre de poids que de features.")
-        return None
-    
+
+    # Cas d'une seule observation
+    if np.ndim(features) == 1:
+        w = model[:-1]
+        b = model[-1]
+
+        return np.dot(w, features[1:]) + b
+
+    # Cas de plusieurs observations
     else:
-        l_perceptron = []
-        for i in range(len(features)):
-            z = 0
-            for j in range(len(features[0]) - 1):
-                z += model[j] * features[i][j + 1]
-            
-            # Ajout du biais
-            z += model[len(model) - 1]
-            l_perceptron += [z]
-    
-    return l_perceptron
+        l_z = []
+
+        for Xk in features:
+            w = model[:-1]
+            b = model[-1]
+
+            l_z.append(np.dot(w, Xk[1:]) + b)
+
+        return l_z
 
 # Fonction qui fait la fonction Heaviside
 def phi(z):
-    if(z >= 0):
-        return 1
-    else:
-        return 0
 
-# Fonction qui calcule la prediction
+    return z >= 0
+
+# Fonction qui calcule la prédiction
 def y(model, features):
-    
-    # Vérification s'il y a autant de poids que de features
-    if(len(model) != len(features[0])):
-        print("Il n'y a pas le même nombre de poids que de features")
-        return None
-    
+
+    # Une seule observation
+    if np.ndim(features) == 1:
+        return phi(z(model, features))
+
+    # Plusieurs observations
     else:
-        l_predi = []
-        l_tmp = z(model, features)
-        for el in l_tmp:
-            l_predi.append(phi(el))
-        return l_predi
+        l_y = []
+
+        for Xk in features:
+            l_y.append(phi(z(model, Xk)))
+
+        return l_y
 
 # Fonction qui affiche la frontière de décision
 def displayFrontier(model):
@@ -199,26 +210,59 @@ def displayFrontier(model):
 
 # Fonction qui calcule et retourne l'erreur e
 def error(features, model):
-
-    # Ajout des classes de tous les individus
-    l_classe = []
-    for Xk in features:
-        l_classe.append(Xk[0])
     
     # On récupère toutes les prédi
     l_predi = y(model, features)
 
-    # On vérifie qu'il y a autant de prédi que de classes
-    if(len(l_classe) != len(l_predi)):
-        print("Il faut qu'il y ait le même nombre de predi que de classes")
-        return
-
+    # On calcule la prédi avec la formule de sommation
     e = 0
     for i in range(len(features)):
-        e += (l_classe[i] - l_predi[i])
+        e += abs(features[i][0] - l_predi[i])
     
     return e
 
+# Fonction qui initialise tous les poids à 0
+def init(model):
+
+    # On parcourt tout model
+    for i in range(len(model)):
+        model[i] = 0
+
+# Fonction qui calcule une époque
+def epoch(model, features, alpha):
+    for k in features:
+        # On calcule la prédiction
+        yk = y(model, k)
+
+        # On compare la classe de l'individu et la prédiction
+        taux_erreur = k[0] - yk
+        if(taux_erreur != 0):
+
+            # On modifie tous les pods
+            for i in range(len(k) - 1):
+                model[i] += alpha * taux_erreur * k[i + 1]
+
+            model[-1] += alpha * taux_erreur
+
+
+# Fonction qui entraîne model à partir de features
+def train(model, features, alpha, error_min=0, epoch_max=100):
+    """
+    Entraine le modele donne en parametre sur le jeu de donnees fourni.
+    :param model: Le modele a entrainer
+    :param dataset: LE jeux de donnees d'entrainement
+    """
+
+    init(model)
+    e = error(features, model)
+    epochs = 0
+
+    while e >= error_min and (epochs == -1 or epochs < epoch_max):
+        epoch(model, features, alpha)
+        e = error(features, model)
+        epochs += 1
+
+    return epochs, e;
 
 
 def main():
@@ -228,11 +272,10 @@ def main():
     plt.show()    # Affichage du canevas MatPlotLib
     """
 
-    filename = "datasetA.csv"
+    filename = "dataset-nl.csv"
     features = loadfeatures(filename)
+    train(model, features, alpha)
     readfeatures(features)
-    #l_y = y(model, features)
-    #print(l_y)
     displayDataset(features, model)
 
 if __name__ == "__main__":
